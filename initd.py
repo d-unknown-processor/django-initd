@@ -18,9 +18,9 @@ __all__ = ['start', 'stop', 'restart', 'status', 'execute']
 """
 Django compatibility as become daemon is no more in Django framework
 """
-if django.VERSION <= 1.8:
+try:
     from django.utils.daemonize import become_daemon
-else:
+except ImportError: # Django >= 1.9
     if os.name == 'posix':
         def become_daemon(our_home_dir='.', out_log='/dev/null',
                           err_log='/dev/null', umask=0o022):
