@@ -48,6 +48,8 @@ class DaemonCommand(BaseCommand):
                             help='Destination to redirect standard out')
         parser.add_argument('--stderr', action='store', dest='stderr', default=self.STDERR,
                             help='Destination to redirect standard error')
+        parser.add_argument('--user', action='store', dest='user', default='',
+                            help='Run as this user')
 
     def loop_callback(self):
         raise NotImplementedError

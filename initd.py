@@ -9,6 +9,7 @@ import logging
 import os
 import signal
 import sys
+import pwd
 import time
 import errno
 import django
@@ -82,13 +83,14 @@ except ImportError: # Django >= 1.9
 
 class Initd(object):
     def __init__(self, log_file='', pid_file='', workdir='', umask='',
-                 stdout='', stderr='', **kwargs):
+                 stdout='', stderr='', user='', **kwargs):
         self.log_file = log_file
         self.pid_file = pid_file
         self.workdir = workdir
         self.umask = umask
         self.stdout = stdout
         self.stderr = stderr
+        self.user = user
 
     def start(self, run, exit=None):
         """
@@ -112,6 +114,22 @@ class Initd(object):
             else:
                 logging.warn('Daemon already running.')
                 return
+
+        # Change uid
+        if self.user:
+            try:
+                pw = pwd.getpwnam(self.user)
+                uid = pw.pw_uid
+                gid = pw.pw_gid
+            except KeyError:
+                logging.error("User %s not found." % self.user)
+                sys.exit(1)
+            try:
+                os.setuid(uid)
+                os.setgid(gid)
+            except OSError:
+                logging.error("Unable to change uid and gid.")
+                sys.exit(1)
 
         become_daemon(self.workdir, self.stdout, self.stderr, self.umask)
 
