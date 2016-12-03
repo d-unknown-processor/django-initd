@@ -125,8 +125,8 @@ class Initd(object):
                 logging.error("User %s not found." % self.user)
                 sys.exit(1)
             try:
-                os.setuid(uid)
                 os.setgid(gid)
+                os.setuid(uid)
             except OSError as e:
                 logging.error("Unable to change uid and gid, error is: %s" % e)
                 sys.exit(1)
@@ -249,7 +249,7 @@ def _initialize_logging(log_file):
         logging.basicConfig(level=logging.INFO,
                             format='%(asctime)s %(levelname)s %(message)s',
                             filename=log_file,
-                            filemode='w')
+                            filemode='a')
 
 
 def _create_pid_file(pid_file):
