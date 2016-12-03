@@ -127,8 +127,8 @@ class Initd(object):
             try:
                 os.setuid(uid)
                 os.setgid(gid)
-            except OSError:
-                logging.error("Unable to change uid and gid.")
+            except OSError as e:
+                logging.error("Unable to change uid and gid, error is: %s" % e)
                 sys.exit(1)
 
         become_daemon(self.workdir, self.stdout, self.stderr, self.umask)
