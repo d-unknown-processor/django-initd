@@ -13,8 +13,6 @@ import time
 import errno
 import django
 
-from . import six
- 
 buffering = int(sys.version_info[0] == 3) # No unbuffered text I/O on Python 3
 
 __all__ = ['start', 'stop', 'restart', 'status', 'execute']
