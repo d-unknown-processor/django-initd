@@ -13,6 +13,10 @@ import time
 import errno
 import django
 
+from . import six
+ 
+buffering = int(sys.version_info[0] == 3) # No unbuffered text I/O on Python 3
+
 __all__ = ['start', 'stop', 'restart', 'status', 'execute']
 
 """
@@ -45,8 +49,8 @@ except ImportError: # Django >= 1.9
                 os._exit(1)
 
             si = open('/dev/null', 'r')
-            so = open(out_log, 'a+', 0)
-            se = open(err_log, 'a+', 0)
+            so = open(out_log, 'a+', buffering)
+            se = open(err_log, 'a+', buffering)
             os.dup2(si.fileno(), sys.stdin.fileno())
             os.dup2(so.fileno(), sys.stdout.fileno())
             os.dup2(se.fileno(), sys.stderr.fileno())
@@ -64,11 +68,11 @@ except ImportError: # Django >= 1.9
             sys.stdout.close()
             sys.stderr.close()
             if err_log:
-                sys.stderr = open(err_log, 'a', 0)
+                sys.stderr = open(err_log, 'a', buffering)
             else:
                 sys.stderr = NullDevice()
             if out_log:
-                sys.stdout = open(out_log, 'a', 0)
+                sys.stdout = open(out_log, 'a', buffering)
             else:
                 sys.stdout = NullDevice()
 
