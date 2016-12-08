@@ -81,8 +81,8 @@ class DaemonCommand(BaseCommand):
         self.logger.addHandler(handler)
 
     def handle(self, **options):
-        log_file = options.pop('logfile', self.LOGFILE)
-        log_level = options.pop('loglevel', self.LOGLEVEL)
+        log_file = options.pop('log_file', self.LOGFILE)
+        log_level = options.pop('log_level', self.LOGLEVEL)
         action = options.pop('action', None)
 
         self._set_up_logging(log_file, log_level)
