@@ -5,8 +5,6 @@ Use this in conjunction with the DaemonCommand management command base class.
 """
 from __future__ import print_function
 
-from logging.handlers import TimedRotatingFileHandler
-
 import logging
 import os
 import signal
@@ -17,7 +15,6 @@ import errno
 import django
 
 buffering = int(sys.version_info[0] == 3) # No unbuffered text I/O on Python 3
-rotating_logs = sys.version_info[0] >= 3 and sys.version_info[1] >= 3 # handlers in logging.basicConfig introduced in python 3.3
 
 __all__ = ['start', 'stop', 'restart', 'status', 'execute']
 
@@ -85,10 +82,9 @@ except ImportError: # Django >= 1.9
 
 
 class Initd(object):
-    def __init__(self, log_file='', log_level=logging.INFO, pid_file='', workdir='', umask='',
+    def __init__(self, app='', pid_file='', workdir='', umask='',
                  stdout='', stderr='', user='', **kwargs):
-        self.log_file = log_file
-        self.log_level = log_level
+        self.logger = logging.getLogger(app)
         self.pid_file = pid_file
         self.workdir = workdir
         self.umask = umask
@@ -116,7 +112,7 @@ class Initd(object):
             except OSError:
                 pass
             else:
-                logging.warn('Daemon already running.')
+                self.logger.warn('Daemon already running.')
                 return
 
         # Change uid
@@ -126,19 +122,18 @@ class Initd(object):
                 uid = pw.pw_uid
                 gid = pw.pw_gid
             except KeyError:
-                logging.error("User %s not found." % self.user)
+                self.logger.error("User %s not found." % self.user)
                 sys.exit(1)
             try:
                 os.setgid(gid)
                 os.setuid(uid)
             except OSError as e:
-                logging.error("Unable to change uid and gid, error is: %s" % e)
+                self.logger.error("Unable to change uid and gid, error is: %s" % e)
                 sys.exit(1)
 
         become_daemon(self.workdir, self.stdout, self.stderr, self.umask)
 
-        _initialize_logging(self.log_file, self.log_level)
-        _create_pid_file(self.pid_file)
+        self._create_pid_file()
 
         # workaround for closure issue is putting running flag in array
         running = [True]
@@ -153,7 +148,7 @@ class Initd(object):
 
             """
             if exit:
-                logging.debug('Calling exit handler')
+                self.logger.debug('Calling exit handler')
                 exit()
             running[0] = False
 
@@ -166,7 +161,7 @@ class Initd(object):
                 provide compatibility for a signal handler.
 
                 """
-                logging.warn('Could not exit gracefully.  Forcefully exiting.')
+                self.logger.warn('Could not exit gracefully.  Forcefully exiting.')
                 sys.exit(1)
 
             signal.signal(signal.SIGALRM, cb_alrm_handler)
@@ -174,7 +169,7 @@ class Initd(object):
 
         signal.signal(signal.SIGTERM, cb_term_handler)
 
-        logging.info('Starting')
+        self.logger.info('Starting')
         try:
             while running[0]:
                 try:
@@ -182,10 +177,10 @@ class Initd(object):
                 # disabling warning for catching Exception, since it is the
                 # top level loop
                 except Exception as exc:  # pylint: disable-msg=W0703
-                    logging.exception(exc)
+                    self.logger.exception(exc)
         finally:
             os.remove(self.pid_file)
-            logging.info('Exiting.')
+            self.logger.info('Exiting.')
 
     def stop(self, run=None, exit=None):
         """
@@ -238,48 +233,15 @@ class Initd(object):
         cmd = getattr(self, action)
         cmd(run, exit)
 
-
-def _initialize_logging(log_file, log_level, log_format='%(asctime)s %(levelname)s %(message)s'):
-    """
-    Initializes logging if a log_file parameter is specified in config
-    config.  Otherwise does not set up any log.
-    
-    Arguments:
-    * log_file:str - The path to the log file, or None if no logging
-                     should take place.
-
-    """
-    if log_file:
-        if rotating_logs:
-            handler = TimedRotatingFileHandler(
-                log_file,
-                when='W0', # mondays
-                encoding='UTF-8'
-            )
-            formatter = logging.Formatter(log_format)
-            handler.setFormatter(formatter)
-            handler.setLevel(log_level)
-            logging.basicConfig(handlers=[handler])
-        else:
-            logging.basicConfig(level=log_level,
-                                format=log_format,
-                                filename=log_file,
-                                filemode='a')
-
-
-def _create_pid_file(pid_file):
-    """
-    Outputs the current pid to the pid file specified in config.  If the
-    pid file cannot be written to, the daemon aborts.
-
-    Arguments:
-    * pid_file:str - The path to the pid file.
-
-    """
-    try:
-        with open(pid_file, 'w') as stream:
-            stream.write(str(os.getpid()))
-    except OSError as err:
-        logging.exception(err)
-        logging.error('Failed to write to pid file, exiting now.')
-        sys.exit(1)
+    def _create_pid_file(self):
+        """
+        Outputs the current pid to the pid file specified in config.  If the
+        pid file cannot be written to, the daemon aborts.
+        """
+        try:
+            with open(self.pid_file, 'w') as stream:
+                stream.write(str(os.getpid()))
+        except OSError as err:
+            self.logger.exception(err)
+            self.logger.error('Failed to write to pid file, exiting now.')
+            sys.exit(1)

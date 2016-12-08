@@ -1,7 +1,9 @@
 import signal
 import logging
+
 from django.core.management.base import BaseCommand
 from initd import Initd
+from logging.handlers import TimedRotatingFileHandler
 
 
 class DaemonCommand(BaseCommand):
@@ -23,9 +25,10 @@ class DaemonCommand(BaseCommand):
     UMASK = 0o022
     PID_FILE = 'daemon_command.pid'
     LOGFILE = 'daemon_command.log'
-    LOGLEVEL = logging.INFO
+    LOGLEVEL = 'INFO'
     STDOUT = '/dev/null'
     STDERR = STDOUT
+    APP = 'daemon_command'
 
     def add_arguments(self, parser):
         """
@@ -46,7 +49,7 @@ class DaemonCommand(BaseCommand):
                             help='File access creation mask ("umask") to set for the process on daemon start.')
         parser.add_argument('--pidfile', action='store', dest='pid_file', default=self.PID_FILE, help='PID filename.')
         parser.add_argument('--logfile', action='store', dest='log_file', default=self.LOGFILE, help='Path to log file')
-        parser.add_argument('--loglevel', action='store', dest='log_level', default=self.LOGLEVEL, help='Log level. See: https://docs.python.org/3/library/logging.html#logging-levels')
+        parser.add_argument('--loglevel', action='store', dest='log_level', default=self.LOGLEVEL, help='Log level')
         parser.add_argument('--stdout', action='store', dest='stdout', default=self.STDOUT,
                             help='Destination to redirect standard out')
         parser.add_argument('--stderr', action='store', dest='stderr', default=self.STDERR,
@@ -60,12 +63,33 @@ class DaemonCommand(BaseCommand):
     def exit_callback(self):
         pass
 
+    def _set_up_logging(self, log_file, log_level, log_format='%(asctime)s %(name)s %(levelname)s %(message)s'):
+        numeric_level = getattr(logging, log_level.upper(), None)
+        if not isinstance(numeric_level, int):
+            raise ValueError('Invalid log level: %s' % log_level)
+
+        logger = logging.getLogger(self.APP)
+        logger.setLevel(numeric_level)
+        handler = TimedRotatingFileHandler(
+            log_file,
+            when='W0', # mondays
+            encoding='UTF-8'
+        )
+        formatter = logging.Formatter(log_format)
+        handler.setFormatter(formatter)
+        handler.setLevel(numeric_level)
+        logger.addHandler(handler)
+
     def handle(self, **options):
+        log_file = options.pop('logfile', self.LOGFILE)
+        log_level = options.pop('loglevel', self.LOGLEVEL)
         action = options.pop('action', None)
-        
+
+        self._set_up_logging(log_file, log_level)
+
         if action:
             # daemonizing so set up functions to call while running and at close
-            daemon = Initd(**options)
+            daemon = Initd(app=self.APP, **options)
             daemon.execute(action, run=self.loop_callback, exit=self.exit_callback)
         else:
             # running in console, so set up signal to call on ctrl-c
