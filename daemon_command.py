@@ -68,8 +68,8 @@ class DaemonCommand(BaseCommand):
         if not isinstance(numeric_level, int):
             raise ValueError('Invalid log level: %s' % log_level)
 
-        logger = logging.getLogger(self.APP)
-        logger.setLevel(numeric_level)
+        self.logger = logging.getLogger(self.APP)
+        self.logger.setLevel(numeric_level)
         handler = TimedRotatingFileHandler(
             log_file,
             when='W0', # mondays
@@ -78,7 +78,7 @@ class DaemonCommand(BaseCommand):
         formatter = logging.Formatter(log_format)
         handler.setFormatter(formatter)
         handler.setLevel(numeric_level)
-        logger.addHandler(handler)
+        self.logger.addHandler(handler)
 
     def handle(self, **options):
         log_file = options.pop('logfile', self.LOGFILE)
