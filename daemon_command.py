@@ -1,4 +1,5 @@
 import signal
+import logging
 from django.core.management.base import BaseCommand
 from initd import Initd
 
@@ -22,6 +23,7 @@ class DaemonCommand(BaseCommand):
     UMASK = 0o022
     PID_FILE = 'daemon_command.pid'
     LOGFILE = 'daemon_command.log'
+    LOGLEVEL = logging.INFO
     STDOUT = '/dev/null'
     STDERR = STDOUT
 
@@ -44,6 +46,7 @@ class DaemonCommand(BaseCommand):
                             help='File access creation mask ("umask") to set for the process on daemon start.')
         parser.add_argument('--pidfile', action='store', dest='pid_file', default=self.PID_FILE, help='PID filename.')
         parser.add_argument('--logfile', action='store', dest='log_file', default=self.LOGFILE, help='Path to log file')
+        parser.add_argument('--loglevel', action='store', dest='log_level', default=self.LOGLEVEL, help='Log level. See: https://docs.python.org/3/library/logging.html#logging-levels')
         parser.add_argument('--stdout', action='store', dest='stdout', default=self.STDOUT,
                             help='Destination to redirect standard out')
         parser.add_argument('--stderr', action='store', dest='stderr', default=self.STDERR,

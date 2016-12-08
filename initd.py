@@ -5,6 +5,8 @@ Use this in conjunction with the DaemonCommand management command base class.
 """
 from __future__ import print_function
 
+from logging.handlers import TimedRotatingFileHandler
+
 import logging
 import os
 import signal
@@ -15,6 +17,7 @@ import errno
 import django
 
 buffering = int(sys.version_info[0] == 3) # No unbuffered text I/O on Python 3
+rotating_logs = sys.version_info[0] >= 3 and sys.version_info[1] >= 3 # handlers in logging.basicConfig introduced in python 3.3
 
 __all__ = ['start', 'stop', 'restart', 'status', 'execute']
 
@@ -82,9 +85,10 @@ except ImportError: # Django >= 1.9
 
 
 class Initd(object):
-    def __init__(self, log_file='', pid_file='', workdir='', umask='',
+    def __init__(self, log_file='', log_level=logging.INFO, pid_file='', workdir='', umask='',
                  stdout='', stderr='', user='', **kwargs):
         self.log_file = log_file
+        self.log_level = log_level
         self.pid_file = pid_file
         self.workdir = workdir
         self.umask = umask
@@ -133,7 +137,7 @@ class Initd(object):
 
         become_daemon(self.workdir, self.stdout, self.stderr, self.umask)
 
-        _initialize_logging(self.log_file)
+        _initialize_logging(self.log_file, self.log_level)
         _create_pid_file(self.pid_file)
 
         # workaround for closure issue is putting running flag in array
@@ -235,7 +239,7 @@ class Initd(object):
         cmd(run, exit)
 
 
-def _initialize_logging(log_file):
+def _initialize_logging(log_file, log_level, log_format='%(asctime)s %(levelname)s %(message)s'):
     """
     Initializes logging if a log_file parameter is specified in config
     config.  Otherwise does not set up any log.
@@ -246,10 +250,21 @@ def _initialize_logging(log_file):
 
     """
     if log_file:
-        logging.basicConfig(level=logging.INFO,
-                            format='%(asctime)s %(levelname)s %(message)s',
-                            filename=log_file,
-                            filemode='a')
+        if rotating_logs:
+            handler = TimedRotatingFileHandler(
+                log_file,
+                when='W0', # mondays
+                encoding='UTF-8'
+            )
+            formatter = logging.Formatter(log_format)
+            handler.setFormatter(formatter)
+            handler.setLevel(log_level)
+            logging.basicConfig(handlers=[handler])
+        else:
+            logging.basicConfig(level=log_level,
+                                format=log_format,
+                                filename=log_file,
+                                filemode='a')
 
 
 def _create_pid_file(pid_file):
