@@ -230,7 +230,18 @@ class Initd(object):
         'Running.' if is started, 'Stopped.' if it is stopped.
         """
         if os.path.exists(self.pid_file):
-            sys.stdout.write('Running.\n')
+            with open(self.pid_file, 'r') as stream:
+                pid = int(stream.read())
+            try:
+                # sending 0 signal doesn't do anything to live process, but 
+                # will raise error if process doesn't exist
+                os.kill(pid, 0)
+            except OSError:
+                sys.stdout.write('Stopped.\n')
+                return
+            else:
+                sys.stdout.write('Running.\n')
+                return
         else:
             sys.stdout.write('Stopped.\n')
         sys.stdout.flush()
