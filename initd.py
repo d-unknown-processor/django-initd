@@ -14,7 +14,7 @@ import time
 import errno
 import django
 
-logger = logging.getLogger('django.management_commands')
+logger = logging.getLogger('django.management_commands.initd')
 
 buffering = int(sys.version_info[0] == 3) # No unbuffered text I/O on Python 3
 
