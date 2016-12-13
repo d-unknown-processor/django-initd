@@ -14,6 +14,8 @@ import time
 import errno
 import django
 
+logger = logging.getLogger('django.management_commands')
+
 buffering = int(sys.version_info[0] == 3) # No unbuffered text I/O on Python 3
 
 __all__ = ['start', 'stop', 'restart', 'status', 'execute']
@@ -82,9 +84,8 @@ except ImportError: # Django >= 1.9
 
 
 class Initd(object):
-    def __init__(self, app='', pid_file='', workdir='', umask='',
+    def __init__(self, pid_file='', workdir='', umask='',
                  stdout='', stderr='', user='', **kwargs):
-        self.logger = logging.getLogger(app)
         self.pid_file = pid_file
         self.workdir = workdir
         self.umask = umask
@@ -112,7 +113,7 @@ class Initd(object):
             except OSError:
                 pass
             else:
-                self.logger.warn('Daemon already running.')
+                logger.warn('Daemon already running.')
                 return
 
         # Change uid
@@ -122,13 +123,13 @@ class Initd(object):
                 uid = pw.pw_uid
                 gid = pw.pw_gid
             except KeyError:
-                self.logger.error("User %s not found." % self.user)
+                logger.error("User %s not found." % self.user)
                 sys.exit(1)
             try:
                 os.setgid(gid)
                 os.setuid(uid)
             except OSError as e:
-                self.logger.error("Unable to change uid and gid, error is: %s" % e)
+                logger.error("Unable to change uid and gid, error is: %s" % e)
                 sys.exit(1)
 
         become_daemon(self.workdir, self.stdout, self.stderr, self.umask)
@@ -148,7 +149,7 @@ class Initd(object):
 
             """
             if exit:
-                self.logger.debug('Calling exit handler')
+                logger.debug('Calling exit handler')
                 exit()
             running[0] = False
 
@@ -161,7 +162,7 @@ class Initd(object):
                 provide compatibility for a signal handler.
 
                 """
-                self.logger.warn('Could not exit gracefully.  Forcefully exiting.')
+                logger.warn('Could not exit gracefully.  Forcefully exiting.')
                 sys.exit(1)
 
             signal.signal(signal.SIGALRM, cb_alrm_handler)
@@ -169,7 +170,7 @@ class Initd(object):
 
         signal.signal(signal.SIGTERM, cb_term_handler)
 
-        self.logger.info('Starting')
+        logger.info('Starting')
         try:
             while running[0]:
                 try:
@@ -177,10 +178,10 @@ class Initd(object):
                 # disabling warning for catching Exception, since it is the
                 # top level loop
                 except Exception as exc:  # pylint: disable-msg=W0703
-                    self.logger.exception(exc)
+                    logger.exception(exc)
         finally:
             os.remove(self.pid_file)
-            self.logger.info('Exiting.')
+            logger.info('Exiting.')
 
     def stop(self, run=None, exit=None):
         """
@@ -201,7 +202,7 @@ class Initd(object):
         try:
             os.kill(pid, signal.SIGTERM)
         except OSError as e:
-            self.logger.warn('Could not kill process: %s' % e)
+            logger.warn('Could not kill process: %s' % e)
             os.remove(self.pid_file)
             return
         while os.path.exists(self.pid_file):
@@ -247,6 +248,6 @@ class Initd(object):
             with open(self.pid_file, 'w') as stream:
                 stream.write(str(os.getpid()))
         except OSError as err:
-            self.logger.exception(err)
-            self.logger.error('Failed to write to pid file, exiting now.')
+            logger.exception(err)
+            logger.error('Failed to write to pid file, exiting now.')
             sys.exit(1)
