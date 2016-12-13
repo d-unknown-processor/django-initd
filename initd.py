@@ -200,8 +200,8 @@ class Initd(object):
         sys.stdout.flush()
         try:
             os.kill(pid, signal.SIGTERM)
-        except ProcessLookupError as e:
-            self.logger.warn('Could not kill process: %s' % e.message)
+        except OSError as e:
+            self.logger.warn('Could not kill process: %s' % e)
             os.remove(self.pid_file)
             return
         while os.path.exists(self.pid_file):
