@@ -198,7 +198,12 @@ class Initd(object):
             return
         sys.stdout.write('Stopping.')
         sys.stdout.flush()
-        os.kill(pid, signal.SIGTERM)
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except ProcessLookupError as e:
+            self.logger.warn('Could not kill process: %s' % e.message)
+            os.remove(self.pid_file)
+            return
         while os.path.exists(self.pid_file):
             sys.stdout.write('.')
             sys.stdout.flush()
