@@ -238,10 +238,8 @@ class Initd(object):
                 os.kill(pid, 0)
             except OSError:
                 sys.stdout.write('Stopped.\n')
-                return
             else:
                 sys.stdout.write('Running.\n')
-                return
         else:
             sys.stdout.write('Stopped.\n')
         sys.stdout.flush()
